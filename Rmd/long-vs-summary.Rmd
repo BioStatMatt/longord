@@ -28,6 +28,9 @@ library('dplyr')
 ## 500 simulated participants from VIOLET
 getHdata(simlongord500)
 
+## 250000 simulated participants from VIOLET
+getHdata(simlongord)
+
 ## convert treatment variable to factor
 simlongord500 <- simlongord500 %>%
   mutate(tx = factor(tx, levels=c(0,1), labels=c('control','treatment')))
@@ -203,6 +206,30 @@ complete_28day_fu <- function(dat) {
   return(out)
 }
 
+## impose missing values
+## no missing until after hospital discharge
+## P(D|M) = P(M|D)P(D)/P(M)
+## dat - data frame; VIOLET simulated data
+## pma - probability of becoming lost to follow-up after hospital discharge for 
+##       people who subsequently remained alive through day 28
+## pmd - probability of becoming lost to follow-up after hospital discharge for 
+##       people who subsequently remained died on or before day 28
+impose_missing <- function(dat, pma=) {
+  check_data(dat)
+}
+
+## code from Frank's website that shows dead after discharge
+# ssamp <- sample(unique(d$id), 65, FALSE)
+# dr        <- subset(d, id %in% ssamp)
+# dr        <- subset(dr, day <= ddeath)
+# dr$id     <- as.integer(as.factor(dr$id))
+# dr$status <- factor(dr$status, levels=rev(levels(dr$status)))
+# dr$day    <- dr$day - 1
+# multEventChart(status ~ day + id, data=dr,
+#                absorb='Dead', sortbylast = TRUE) +
+#   theme_classic() +
+#   theme(legend.position='bottom')
+
 ```
 
 ```{r}
@@ -215,4 +242,35 @@ propsPO(y ~ tx + time, data=dat_sim %>% filter(time <= 14), nrow=1) +
         axis.text.x=element_text(angle=90, hjust=1),
         axis.title.x = element_blank(),
         legend.title = element_blank())
+```
+
+## How often did people die after initial hospital discharge
+```{r}
+simlongord500 %>%
+  group_by(id) %>%
+  summarise(died_after_discharge = (function(time, y) {
+    mh <- match('Home', y)
+    md <- match('Dead', y)
+    
+    if(!is.na(mh) && !is.na(md))
+      return(TRUE)
+    
+    return(FALSE)
+  })(time, y)) %>%
+  pull(died_after_discharge) %>%
+  table(useNA='always')
+
+simlongord %>%
+  group_by(id) %>%
+  summarise(died_after_discharge = (function(time, y) {
+    mh <- match('Home', y)
+    md <- match('Dead', y)
+    
+    if(!is.na(mh) && !is.na(md))
+      return(TRUE)
+    
+    return(FALSE)
+  })(time, y)) %>%
+  pull(died_after_discharge) %>%
+  table(useNA='always')
 ```
